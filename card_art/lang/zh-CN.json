@@ -1,0 +1,1 @@
+{ "name": "卡图切换", "description": "在卡牌详情页为每张卡选择不同的卡图变体。变体是放在 kmod/art/<包名>/ 里的 PNG。", "art": "卡图", "original": "原图" }

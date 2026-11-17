@@ -1,0 +1,9 @@
+{
+  "format": 1,
+  "id": "card_art",
+  "name": "Card Art Switcher",
+  "version": "0.1.0",
+  "author": "kmod",
+  "description": "Choose between several art variants of a card on the card detail page. Variants are PNG packs in kmod/art/<pack>/.",
+  "depends": ["kmod>=0.2.0", "kards>=1.61"]
+}
