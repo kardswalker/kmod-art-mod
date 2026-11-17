@@ -145,9 +145,22 @@ local function label(asset)
   return Lang.t("art") .. ": " .. ((cur and cur ~= "") and cur or Lang.t("original"))
 end
 
+-- The card detail page exists in two layouts: the mobile one (Android) and the PC one (Windows).
+local DETAIL = { "W_CollectionCardDetail_Mobile_C", "W_CollectionCardDetail_PC_C" }
+local DETAIL_SET = {}
+for _, n in ipairs(DETAIL) do DETAIL_SET[n] = true end
+
 local function detailOf(w)
   local ok, det = pcall(function() return w:GetOuter():GetOuter() end)
-  if ok and det:IsValid() and det:GetClass():GetName() == "W_CollectionCardDetail_Mobile_C" then return det end
+  if ok and det:IsValid() and DETAIL_SET[det:GetClass():GetName()] then return det end
+end
+
+-- the page's 2D card widget: W_Card2D on the mobile page, thisCard2D on the PC page (tried in this order)
+local function cardOf(det)
+  for _, name in ipairs({ "W_Card2D", "thisCard2D" }) do
+    local ok, w = pcall(function() return det[name] end)
+    if ok and w and w:IsValid() then return w end
+  end
 end
 
 local function refreshButton(det, asset)
@@ -168,7 +181,12 @@ local function ensureButton(det)
   local cls = FindObject("WidgetBlueprintGeneratedClass", "WBP_NUI_MasterTextButton_C")
   local wl = StaticFindObject("/Script/UMG.Default__WidgetBlueprintLibrary")
   b = wl:Create(det, cls, FindFirstOf("PlayerController"))
-  det.widgetSwitcherButtonHBox:AddChild(b)
+  local added = false
+  for _, name in ipairs({ "widgetSwitcherButtonHBox", "infoVBox", "ArtistVBox" }) do        -- where the page keeps its buttons / texts
+    local ok, box = pcall(function() return det[name] end)
+    if ok and box and box:IsValid() and pcall(function() box:AddChild(b) end) then added = true; Log.info("art button goes into " .. name); break end
+  end
+  if not added then Log.warn("no place for the art button on " .. det:GetName()) end
   buttons[addr] = b
   Log.info("added the art button to " .. det:GetName())
   return b
@@ -185,8 +203,8 @@ local function onCard2D(w)
 end
 local function onDetail(det)
   ensureButton(det)
-  local w = det.W_Card2D
-  refreshButton(det, w and w:IsValid() and apply(w) or nil)
+  local w = cardOf(det)
+  refreshButton(det, w and apply(w) or nil)
 end
 
 local cardCls = FindObject("WidgetBlueprintGeneratedClass", "W_Card2D_C")
@@ -200,16 +218,23 @@ for _, f in ipairs(cardCls:GetFunctions()) do
 end
 Log.info("hooked " .. hooked .. " OnLoaded callback(s) of W_Card2D_C")
 RegisterHook("W_Card2D_C:SetCardImage", function() end, function(self) onCard2D(self) end)
-RegisterHook("W_CollectionCardDetail_Mobile_C:Construct", function() end, function(self) Log.debug("detail Construct"); onDetail(self) end)
-RegisterHook("W_CollectionCardDetail_Mobile_C:UpdateCollectionCardVisuals", function() end, function(self) Log.debug("detail UpdateCollectionCardVisuals"); onDetail(self) end)
+for _, cn in ipairs(DETAIL) do
+  for _, fn in ipairs({ "Construct", "UpdateCollectionCardVisuals" }) do
+    local ok, err = pcall(RegisterHook, cn .. ":" .. fn, function() end, function(self) Log.debug(cn .. " " .. fn); onDetail(self) end)
+    if not ok then Log.warn("cannot hook " .. cn .. ":" .. fn .. " (" .. tostring(err):match("^[^"..string.char(10).."]*") .. ")") end
+  end
+end
 
 RegisterHook(CLICK, function() end, function(self)
   for addr, b in pairs(buttons) do
     if b:IsValid() and b == self then
       local det
-      for _, d in ipairs(FindAllOf("W_CollectionCardDetail_Mobile_C") or {}) do if d:GetAddress() == addr then det = d end end
+      for _, cn in ipairs(DETAIL) do
+        for _, d in ipairs(FindAllOf(cn) or {}) do if d:GetAddress() == addr then det = d end end
+      end
       if not det then return end
-      local w = det.W_Card2D
+      local w = cardOf(det)
+      if not w then return end
       local st = state[w.mat:GetAddress()]
       if not st then return end
       local list = variants(st.asset)
