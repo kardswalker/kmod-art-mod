@@ -1,0 +1,13 @@
+[
+  {
+    "Asset": "/Game/Assets/Textures/Images/Germany/01_Base/T_annihilation",
+    "File": "Assets/Textures/Images/Germany/01_Base/T_annihilation.png",
+    "Width": 1024,
+    "Height": 1536,
+    "Format": "PF_ASTC_8x8"
+  },
+  {
+    "Asset": "/Game/Assets/Textures/Images/Germany/T_pnz_35t",
+    "File": "pnz_35t.png"
+  }
+]
